@@ -1,0 +1,59 @@
+{
+  "name": "skool-public-calendar",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Public iCalendar subscription feed for a Skool community",
+  "type": "module",
+  "packageManager": "npm@12.1.0",
+  "scripts": {
+    "dev": "wrangler dev --test-scheduled",
+    "types": "wrangler types",
+    "types:check": "wrangler types --check",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "smoke": "node scripts/smoke.mjs",
+    "deploy": "wrangler deploy --env=\"\"",
+    "deploy:dry": "wrangler deploy --env=\"\" --dry-run",
+    "deploy:production": "wrangler deploy --env production",
+    "deploy:production:dry": "wrangler deploy --env production --dry-run"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "devDependencies": {
+    "@cloudflare/vitest-plugin": "1.2.6",
+    "@types/node": "^22.20.4",
+    "@vitest/coverage-istanbul": "4.1.11",
+    "ical.js": "2.2.1",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11",
+    "wrangler": "4.139.0"
+  },
+  "cloudflare": {
+    "bindings": {
+      "CALENDAR_KV": {
+        "description": "Stores the last valid generated calendar and its metadata."
+      },
+      "GROUP_SLUG": {
+        "description": "Public Skool group slug, for example `cagala-aprende-repite`."
+      },
+      "CALENDAR_NAME": {
+        "description": "Human-readable calendar name shown by calendar clients."
+      },
+      "FEED_PATH": {
+        "description": "Public path served by the Worker, for example `/calendario.ics`."
+      },
+      "PAST_MONTHS": {
+        "description": "Number of past calendar months included in each snapshot."
+      },
+      "FUTURE_MONTHS": {
+        "description": "Number of future calendar months included in each snapshot."
+      },
+      "CACHE_CONTROL": {
+        "description": "Cache-Control value returned with successful calendar responses."
+      }
+    }
+  }
+}

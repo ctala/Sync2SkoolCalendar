@@ -1,0 +1,51 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "skool-public-calendar",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-09-24",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "kv_namespaces": [
+    {
+      "binding": "CALENDAR_KV"
+    }
+  ],
+  "vars": {
+    "GROUP_SLUG": "cagala-aprende-repite",
+    "CALENDAR_NAME": "Cágala, Aprende, Repite",
+    "FEED_PATH": "/calendario.ics",
+    "PAST_MONTHS": "1",
+    "FUTURE_MONTHS": "12",
+    "CACHE_CONTROL": "public, max-age=300, stale-while-revalidate=3600"
+  },
+  "triggers": {
+    "crons": ["*/30 * * * *"]
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "env": {
+    "production": {
+      "routes": [
+        {
+          "pattern": "https://aprenderepite.com/calendario.ics",
+          "zone_name": "aprenderepite.com"
+        }
+      ],
+      "kv_namespaces": [
+        {
+          "binding": "CALENDAR_KV"
+        }
+      ],
+      "vars": {
+        "GROUP_SLUG": "cagala-aprende-repite",
+        "CALENDAR_NAME": "Cágala, Aprende, Repite",
+        "FEED_PATH": "/calendario.ics",
+        "PAST_MONTHS": "1",
+        "FUTURE_MONTHS": "12",
+        "CACHE_CONTROL": "public, max-age=300, stale-while-revalidate=3600"
+      }
+    }
+  }
+}

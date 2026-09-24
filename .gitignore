@@ -1,0 +1,9 @@
+node_modules/
+coverage/
+.wrangler/
+.DS_Store
+npm-debug.log*
+.agents/
+.claude/
+.hermes/
+.opencode/
