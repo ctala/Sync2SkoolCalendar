@@ -14,7 +14,7 @@
 ## 3. Public README Funnel
 
 - [x] 3.1 Rewrite the README header and opening sections in English with a search-oriented value proposition, supported clients, production proof, and no unsupported claims; verify the first screen explains Skool calendar sync, iCalendar/ICS, and Cloudflare Workers.
-- [ ] 3.2 Add no more than four authoritative badges for CI, MIT, Cloudflare Workers, and GitHub Sponsors; verify every image and target URL resolves and remove any badge that cannot be independently validated.
+- [x] 3.2 Add no more than four authoritative badges for CI, MIT, Cloudflare Workers, and GitHub Sponsors; verify every image and target URL resolves and remove any badge that cannot be independently validated.
 - [x] 3.3 Add an equally weighted "Choose your path" section for the self-hosted calendar Worker and broader managed Skool automation Actor; verify all Actor CTAs use `https://apify.com/cristiantala/skool-all-in-one-api?fpr=cristian`, the first CTA has adjacent affiliate disclosure, and no copy claims the Actor replaces the calendar Worker.
 - [x] 3.4 Preserve and translate the accurate architecture, configuration, development, testing, deployment, subscription, limitations, and rollback content; add focused FAQ, contribution, security, sponsorship, and license sections; verify commands and production examples still match the deployed Worker.
 
@@ -33,9 +33,9 @@
 
 ## 6. Public Release and Cross-Change Closure
 
-- [ ] 6.1 After explicit approval only, change `ctala/Sync2SkoolCalendar` visibility to public, immediately enable private vulnerability reporting, and verify anonymous users can access the README, license, Issues, Discussions, security policy, Sponsor button, badges, metadata, and community templates.
-- [ ] 6.2 From a clean independent context, run Deploy to Cloudflare through the public repository, verify automatic KV provisioning and a working `workers.dev` calendar with the smoke test, and return the repository to private if this provisional-release validation fails.
-- [ ] 6.3 Record public-release and one-click deployment evidence, mark task 5.3 in `publish-public-skool-calendar` complete only after the clean deployment passes, and verify both OpenSpec changes validate without unresolved implementation tasks other than any explicitly deferred archive step.
+- [x] 6.1 After explicit approval only, change `ctala/Sync2SkoolCalendar` visibility to public, immediately enable private vulnerability reporting, and verify anonymous users can access the README, license, Issues, Discussions, security policy, Sponsor button, badges, metadata, and community templates.
+- [x] 6.2 From a clean independent context, run Deploy to Cloudflare through the public repository, verify automatic KV provisioning and a working `workers.dev` calendar with the smoke test, and return the repository to private if this provisional-release validation fails.
+- [x] 6.3 Record public-release and one-click deployment evidence, mark task 5.3 in `publish-public-skool-calendar` complete only after the clean deployment passes, and verify both OpenSpec changes validate without unresolved implementation tasks other than any explicitly deferred archive step.
 
 ## Private Release Gate Evidence (2026-09-25)
 
@@ -49,3 +49,11 @@
 - `gitleaks` scanned five historical commits and the current directory with zero findings. Sanitized fixtures contained synthetic identifiers and no credentials, cookies, personal email addresses, or private-community payloads.
 - GitHub still reported `isPrivate: true`; no visibility change was attempted.
 - The maintainer explicitly approved merging PR `#1`, changing visibility to public, enabling private vulnerability reporting, and running the provisional public-release validation.
+- Squash commit `708e8b2976ce52a9b68c4b60b3b9a48cfb93e848` merged PR `#1`; GitHub then reported `visibility: PUBLIC`, MIT license detection, enabled private vulnerability reporting, and HTTP 200 for the repository, Issues, Discussions, security policy, and all four badges.
+
+## Public Release Evidence (2026-09-25)
+
+- An anonymous HTTPS clone resolved public `main` at commit `708e8b2976ce52a9b68c4b60b3b9a48cfb93e848`; clean npm installation, generated-type validation, type checking, and all 47 tests passed from that clone.
+- Wrangler provisioned temporary KV namespace `f39c904c9f7644c4a78462314cfb7858` automatically and deployed temporary Worker version `d74b6607-3ec1-4a1b-ad3b-d0e2b13fb8c8` without source edits.
+- `https://skool-calendar-release-check-20260925.ctala.workers.dev/calendario.ics` passed the deployed smoke test with 96 events and ETag `a253b757a00254c9c4ee768c1b660beacdb4b3edb5f729ca5df7db596b6bf6c7`.
+- The temporary Worker and KV namespace were deleted after validation; only the original preview and production namespaces remain, and the production smoke test still serves the same 96-event hash.

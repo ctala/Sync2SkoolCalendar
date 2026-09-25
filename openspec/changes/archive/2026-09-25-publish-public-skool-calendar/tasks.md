@@ -30,7 +30,7 @@
 
 - [x] 5.1 Finalize `wrangler.jsonc` for automatic KV provisioning, public configuration descriptions, `workers.dev` deployment, Cron scheduling, current compatibility settings, and observability; verify `wrangler deploy --dry-run` succeeds without secrets or pre-created resource IDs.
 - [x] 5.2 Document local development, configuration, tests, manual synchronization, calendar subscription, source limitations, custom-domain routing, and rollback in the README; verify every documented command works from a clean checkout.
-- [ ] 5.3 Add the official Deploy to Cloudflare button targeting the final public GitHub or GitLab repository; verify a clean one-click deployment provisions KV and produces a working `workers.dev` calendar URL without editing source files.
+- [x] 5.3 Add the official Deploy to Cloudflare button targeting the final public GitHub or GitLab repository; verify a clean one-click deployment provisions KV and produces a working `workers.dev` calendar URL without editing source files.
 
 ## 6. Production Release
 
@@ -51,4 +51,5 @@
 - Initial subscription, event display, direct links, and timezone rendering passed in Google Calendar, Apple Calendar, and Outlook after enabling query-string routing. Deterministic snapshot tests cover updates and removals; provider-controlled propagation latency was documented as a client limitation rather than treated as a release blocker.
 - Live content covered `2026-08-12T14:00:00.000Z` through `2027-09-30T18:00:00.000Z`, included 28 titles matching public VIP/Premium metadata, and linked every event back to the CAR Skool calendar.
 - The `aprenderepite.com` home-page SHA-256 remained `c573f4cd7e2f2801e3e1de50d170fe75361908ee7ffc3e74f33104b3082fe5d6` before and after attaching the exact Worker route.
-- Deferred release evidence: the public repository and one-click deployment remain intentionally pending until the private repository is ready for open-source distribution.
+- PR `#1` was squash-merged as `708e8b2976ce52a9b68c4b60b3b9a48cfb93e848`, and `https://github.com/ctala/Sync2SkoolCalendar` was published with MIT detection, Sponsors, community files, Discussions, Issues, and private vulnerability reporting enabled.
+- A clean anonymous clone deployed temporary Worker version `d74b6607-3ec1-4a1b-ad3b-d0e2b13fb8c8`; Wrangler automatically provisioned KV namespace `f39c904c9f7644c4a78462314cfb7858`, and the resulting `workers.dev` feed passed the 96-event smoke test without source edits. Both temporary resources were deleted after validation.
