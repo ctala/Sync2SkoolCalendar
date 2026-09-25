@@ -1,0 +1,66 @@
+name: Bug report
+description: Report reproducible behavior in the Worker or generated calendar
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug. Remove credentials, cookies, personal data, and private-community content before submitting.
+
+        Use GitHub Discussions for setup questions and GitHub Security Advisories for vulnerabilities.
+  - type: checkboxes
+    id: preflight
+    attributes:
+      label: Preflight
+      options:
+        - label: The Skool community is public.
+          required: true
+        - label: I searched existing issues and discussions.
+          required: true
+        - label: This report contains no secrets, cookies, or private data.
+          required: true
+  - type: input
+    id: endpoint
+    attributes:
+      label: Calendar endpoint
+      description: Share the public Worker URL, or write "local". Do not include private URLs or tokens.
+      placeholder: https://example.workers.dev/calendario.ics
+    validations:
+      required: true
+  - type: input
+    id: client
+    attributes:
+      label: Calendar client
+      description: Include the application and version when the issue is client-specific.
+      placeholder: Google Calendar, Apple Calendar, Outlook, curl, or other
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction steps
+      description: Provide the smallest deterministic sequence that reproduces the problem.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: Include sanitized logs, response headers, or calendar fragments when useful.
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include Node.js, npm, Wrangler, operating system, and deployment context as applicable.
+  - type: textarea
+    id: additional
+    attributes:
+      label: Additional context

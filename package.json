@@ -3,6 +3,27 @@
   "version": "0.1.0",
   "private": true,
   "description": "Public iCalendar subscription feed for a Skool community",
+  "keywords": [
+    "skool",
+    "calendar-sync",
+    "icalendar",
+    "ics",
+    "cloudflare-workers",
+    "google-calendar",
+    "apple-calendar",
+    "outlook-calendar",
+    "typescript"
+  ],
+  "homepage": "https://github.com/ctala/Sync2SkoolCalendar#readme",
+  "bugs": {
+    "url": "https://github.com/ctala/Sync2SkoolCalendar/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ctala/Sync2SkoolCalendar.git"
+  },
+  "author": "Cristian Tala S.",
+  "license": "MIT",
   "type": "module",
   "packageManager": "npm@12.1.0",
   "scripts": {

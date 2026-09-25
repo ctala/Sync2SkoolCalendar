@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Setup and usage questions
+    url: https://github.com/ctala/Sync2SkoolCalendar/discussions
+    about: Ask for help and discuss deployment or calendar-client behavior.
+  - name: Report a security vulnerability
+    url: https://github.com/ctala/Sync2SkoolCalendar/security/advisories/new
+    about: Send sensitive security reports privately. Do not open a public issue.
