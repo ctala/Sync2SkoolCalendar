@@ -34,7 +34,7 @@
 
 ## 6. Production Release
 
-- [ ] 6.1 Deploy a preview Worker, trigger synchronization, and verify its response headers, event count, deterministic UIDs, parseability, recurrence coverage, restricted-event visibility, and last-known-good behavior against the live public Skool calendar.
+- [x] 6.1 Deploy a preview Worker, trigger synchronization, and verify its response headers, event count, deterministic UIDs, parseability, recurrence coverage, restricted-event visibility, and last-known-good behavior against the live public Skool calendar.
 - [ ] 6.2 Subscribe to the preview feed with representative Google, Apple, and Outlook clients and verify event creation, updates, removals, links, and timezone display; record any client-specific limitations in the README.
 - [x] 6.3 Configure the exact `aprenderepite.com/calendario.ics` Worker route, run the deployed smoke test, and verify the existing Astro site remains unchanged on all other paths.
 - [x] 6.4 Verify CI, test coverage, type checking, Wrangler validation, scheduled refresh logs, production URL availability, and rollback instructions, then record the final release evidence before marking the change complete.
@@ -43,7 +43,8 @@
 
 - Clean `npm ci`, generated-type check, strict TypeScript check, coverage suite, and root/production Wrangler dry-runs passed.
 - 47 automated tests passed with 88.04% statement, 76.13% branch, 98.33% function, and 91.61% line coverage.
-- Preview deployment `638a5c5e-c08b-4e58-8da3-1d6c2cc07c73` served 96 parseable events from `https://skool-public-calendar.ctala.workers.dev/calendario.ics`.
+- Preview deployment `775cdec8-14ca-4a53-a42f-728d44f531db` served 96 parseable events from `https://skool-public-calendar.ctala.workers.dev/calendario.ics`.
+- A temporary preview-only failure probe forced the live refresh path to receive HTTP 503 from its source. The refresh failed without replacing KV, and the restored calendar continued serving the same 96 events, ETag `a253b757a00254c9c4ee768c1b660beacdb4b3edb5f729ca5df7db596b6bf6c7`, and `Last-Modified` value.
 - Production deployment `d90b4f73-0c6d-4026-bf47-09769a026ce7` served 96 parseable events with unique UIDs, visible direct Skool links, cache validators, and working conditional GET at `https://aprenderepite.com/calendario.ics`. Its validated content ETag was `a253b757a00254c9c4ee768c1b660beacdb4b3edb5f729ca5df7db596b6bf6c7`.
 - GitHub Actions run `36074711779` passed installation, generated-type validation, strict type checking, coverage thresholds, and the Wrangler deployment dry-run from the private repository.
 - Production Cron `*/30 * * * *` completed successfully at `2026-09-25T00:00:54.000Z`, publishing the same 96-event content hash without changing the representation.
