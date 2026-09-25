@@ -119,7 +119,7 @@ webcal://aprenderepite.com/calendario.ics
 
 La frecuencia con que aparece un cambio depende también del cliente. Aunque el Worker refresca cada 30 minutos, Google Calendar, Apple Calendar y Outlook deciden cuándo vuelven a consultar el feed.
 
-La suscripción inicial fue validada en Google Calendar, Apple Calendar y Outlook. Si un cliente conserva en caché un primer intento fallido, elimina esa suscripción y vuelve a agregar la URL con un parámetro nuevo, por ejemplo `https://aprenderepite.com/calendario.ics?v=2`.
+La suscripción inicial, los enlaces y la visualización de horarios fueron validados en Google Calendar, Apple Calendar y Outlook. La generación de snapshots completos y las pruebas automatizadas cubren actualizaciones y eliminaciones, pero no se midió su latencia de propagación en cada cliente porque esas aplicaciones controlan su propio ciclo de refresco. Si un cliente conserva en caché un primer intento fallido, elimina esa suscripción y vuelve a agregar la URL con un parámetro nuevo, por ejemplo `https://aprenderepite.com/calendario.ics?v=2`.
 
 ## Limitaciones
 

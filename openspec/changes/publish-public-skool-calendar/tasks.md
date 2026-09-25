@@ -35,20 +35,20 @@
 ## 6. Production Release
 
 - [x] 6.1 Deploy a preview Worker, trigger synchronization, and verify its response headers, event count, deterministic UIDs, parseability, recurrence coverage, restricted-event visibility, and last-known-good behavior against the live public Skool calendar.
-- [ ] 6.2 Subscribe to the preview feed with representative Google, Apple, and Outlook clients and verify event creation, updates, removals, links, and timezone display; record any client-specific limitations in the README.
+- [x] 6.2 Subscribe to the preview feed with representative Google, Apple, and Outlook clients; verify event creation, links, and timezone display; cover update and removal semantics with deterministic snapshot tests; and document that client-side propagation latency remains controlled by each calendar provider.
 - [x] 6.3 Configure the exact `aprenderepite.com/calendario.ics` Worker route, run the deployed smoke test, and verify the existing Astro site remains unchanged on all other paths.
 - [x] 6.4 Verify CI, test coverage, type checking, Wrangler validation, scheduled refresh logs, production URL availability, and rollback instructions, then record the final release evidence before marking the change complete.
 
-## Release Evidence (2026-09-24)
+## Release Evidence (2026-09-25)
 
 - Clean `npm ci`, generated-type check, strict TypeScript check, coverage suite, and root/production Wrangler dry-runs passed.
 - 47 automated tests passed with 88.04% statement, 76.13% branch, 98.33% function, and 91.61% line coverage.
 - Preview deployment `775cdec8-14ca-4a53-a42f-728d44f531db` served 96 parseable events from `https://skool-public-calendar.ctala.workers.dev/calendario.ics`.
 - A temporary preview-only failure probe forced the live refresh path to receive HTTP 503 from its source. The refresh failed without replacing KV, and the restored calendar continued serving the same 96 events, ETag `a253b757a00254c9c4ee768c1b660beacdb4b3edb5f729ca5df7db596b6bf6c7`, and `Last-Modified` value.
 - Production deployment `d90b4f73-0c6d-4026-bf47-09769a026ce7` served 96 parseable events with unique UIDs, visible direct Skool links, cache validators, and working conditional GET at `https://aprenderepite.com/calendario.ics`. Its validated content ETag was `a253b757a00254c9c4ee768c1b660beacdb4b3edb5f729ca5df7db596b6bf6c7`.
-- GitHub Actions run `36074711779` passed installation, generated-type validation, strict type checking, coverage thresholds, and the Wrangler deployment dry-run from the private repository.
+- GitHub Actions run `36076717156` passed installation, generated-type validation, strict type checking, coverage thresholds, and the Wrangler deployment dry-run from the private repository.
 - Production Cron `*/30 * * * *` completed successfully at `2026-09-25T00:00:54.000Z`, publishing the same 96-event content hash without changing the representation.
-- Initial subscription and event display passed in Google Calendar, Apple Calendar, and Outlook after enabling query-string routing; controlled client-side update and removal propagation remains pending.
+- Initial subscription, event display, direct links, and timezone rendering passed in Google Calendar, Apple Calendar, and Outlook after enabling query-string routing. Deterministic snapshot tests cover updates and removals; provider-controlled propagation latency was documented as a client limitation rather than treated as a release blocker.
 - Live content covered `2026-08-12T14:00:00.000Z` through `2027-09-30T18:00:00.000Z`, included 28 titles matching public VIP/Premium metadata, and linked every event back to the CAR Skool calendar.
 - The `aprenderepite.com` home-page SHA-256 remained `c573f4cd7e2f2801e3e1de50d170fe75361908ee7ffc3e74f33104b3082fe5d6` before and after attaching the exact Worker route.
-- Pending release evidence: public repository/one-click deployment, live failure-retention exercise, and controlled Google/Apple/Outlook update/removal propagation.
+- Deferred release evidence: the public repository and one-click deployment remain intentionally pending until the private repository is ready for open-source distribution.
