@@ -10,6 +10,7 @@ Publica el calendario de una comunidad pública de Skool como un feed iCalendar 
 - Incluye eventos visibles aunque tengan metadatos de un nivel Premium o VIP.
 - Usa las ocurrencias que Skool ya expandió para respetar cambios y excepciones de eventos recurrentes.
 - Genera un `VEVENT` por ocurrencia con UID estable.
+- Incluye el enlace directo al evento de Skool como propiedad `URL` y como texto visible dentro de la descripción.
 - Sincroniza cada 30 minutos y guarda el último calendario válido en Cloudflare KV.
 - Sigue sirviendo ese calendario si Skool falla o cambia temporalmente su respuesta.
 - Expone por defecto `/calendario.ics`.
@@ -97,7 +98,7 @@ El primer deploy entrega una URL `workers.dev`. Para usar un dominio propio:
 3. Para CAR, la ruta de producción es `aprenderepite.com/calendario.ics`.
 4. Ejecuta el smoke test contra la URL final.
 
-La zona del dominio debe existir en la misma cuenta de Cloudflare. El botón no puede asociar automáticamente el dominio de otra persona.
+La zona del dominio debe existir en la misma cuenta de Cloudflare. La ruta de Cloudflare termina en `*` para aceptar los parámetros de caché que pueden agregar los clientes, pero el Worker solo sirve el pathname exacto `/calendario.ics`. El botón no puede asociar automáticamente el dominio de otra persona.
 
 Este repositorio mantiene la ruta de CAR en un entorno separado para que el deploy genérico siga siendo reutilizable:
 
@@ -117,6 +118,8 @@ webcal://aprenderepite.com/calendario.ics
 ```
 
 La frecuencia con que aparece un cambio depende también del cliente. Aunque el Worker refresca cada 30 minutos, Google Calendar, Apple Calendar y Outlook deciden cuándo vuelven a consultar el feed.
+
+La suscripción inicial fue validada en Google Calendar, Apple Calendar y Outlook. Si un cliente conserva en caché un primer intento fallido, elimina esa suscripción y vuelve a agregar la URL con un parámetro nuevo, por ejemplo `https://aprenderepite.com/calendario.ics?v=2`.
 
 ## Limitaciones
 

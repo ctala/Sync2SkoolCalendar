@@ -29,7 +29,7 @@
     "production": {
       "routes": [
         {
-          "pattern": "https://aprenderepite.com/calendario.ics",
+          "pattern": "https://aprenderepite.com/calendario.ics*",
           "zone_name": "aprenderepite.com"
         }
       ],

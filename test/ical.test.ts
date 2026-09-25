@@ -93,6 +93,36 @@ describe("iCalendar generation", () => {
     expect(source).toContain(
       `URL:https://www.skool.com/${GROUP_SLUG}/calendar?eid=event-vip`,
     );
+    const event = parseCalendar(source).getFirstSubcomponent("vevent");
+    expect(event?.getFirstPropertyValue("description")).toContain(
+      `Evento en Skool: https://www.skool.com/${GROUP_SLUG}/calendar?eid=event-vip`,
+    );
+  });
+
+  it("does not duplicate a Skool URL already present in the description", () => {
+    const url = `https://www.skool.com/${GROUP_SLUG}/calendar?eid=event-public`;
+    const event = normalizeEvent(
+      {
+        ...unrestrictedEvent,
+        metadata: {
+          ...unrestrictedEvent.metadata,
+          description: `Abre el evento: ${url}`,
+        },
+      },
+      GROUP_SLUG,
+    );
+    const source = generateCalendar([event], {
+      calendarName: "CAR",
+      groupSlug: GROUP_SLUG,
+      generatedAt,
+    });
+    const description = String(
+      parseCalendar(source)
+        .getFirstSubcomponent("vevent")
+        ?.getFirstPropertyValue("description"),
+    );
+
+    expect(description.split(url)).toHaveLength(2);
   });
 
   it("escapes text, preserves links, uses CRLF, and folds UTF-8 lines", () => {

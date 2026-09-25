@@ -36,6 +36,18 @@ if (uids.some((uid) => typeof uid !== "string" || uid.length === 0)) {
 if (new Set(uids).size !== uids.length) {
   throw new Error("Calendar contains duplicate event UIDs");
 }
+for (const event of events) {
+  const eventUrl = event.getFirstPropertyValue("url");
+  const description = event.getFirstPropertyValue("description");
+  if (
+    typeof eventUrl !== "string" ||
+    !eventUrl.startsWith("https://www.skool.com/") ||
+    typeof description !== "string" ||
+    !description.includes(eventUrl)
+  ) {
+    throw new Error("Calendar contains an event without a visible Skool link");
+  }
+}
 
 const etag = response.headers.get("etag");
 const lastModified = response.headers.get("last-modified");

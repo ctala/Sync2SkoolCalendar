@@ -37,14 +37,17 @@
 - [ ] 6.1 Deploy a preview Worker, trigger synchronization, and verify its response headers, event count, deterministic UIDs, parseability, recurrence coverage, restricted-event visibility, and last-known-good behavior against the live public Skool calendar.
 - [ ] 6.2 Subscribe to the preview feed with representative Google, Apple, and Outlook clients and verify event creation, updates, removals, links, and timezone display; record any client-specific limitations in the README.
 - [x] 6.3 Configure the exact `aprenderepite.com/calendario.ics` Worker route, run the deployed smoke test, and verify the existing Astro site remains unchanged on all other paths.
-- [ ] 6.4 Verify CI, test coverage, type checking, Wrangler validation, scheduled refresh logs, production URL availability, and rollback instructions, then record the final release evidence before marking the change complete.
+- [x] 6.4 Verify CI, test coverage, type checking, Wrangler validation, scheduled refresh logs, production URL availability, and rollback instructions, then record the final release evidence before marking the change complete.
 
 ## Release Evidence (2026-09-24)
 
 - Clean `npm ci`, generated-type check, strict TypeScript check, coverage suite, and root/production Wrangler dry-runs passed.
-- 46 automated tests passed with 87.9% statement, 76.15% branch, 98.3% function, and 91.53% line coverage.
-- Preview deployment `95fc1a8c-a13a-46d6-905b-b63bb8a739c4` served 96 parseable events from `https://skool-public-calendar.ctala.workers.dev/calendario.ics`.
-- Production deployment `52941d01-68d2-4234-99ed-e4937f59028d` served 96 parseable events with unique UIDs, cache validators, and working conditional GET at `https://aprenderepite.com/calendario.ics`.
+- 47 automated tests passed with 88.04% statement, 76.13% branch, 98.33% function, and 91.61% line coverage.
+- Preview deployment `638a5c5e-c08b-4e58-8da3-1d6c2cc07c73` served 96 parseable events from `https://skool-public-calendar.ctala.workers.dev/calendario.ics`.
+- Production deployment `d90b4f73-0c6d-4026-bf47-09769a026ce7` served 96 parseable events with unique UIDs, visible direct Skool links, cache validators, and working conditional GET at `https://aprenderepite.com/calendario.ics`. Its validated content ETag was `a253b757a00254c9c4ee768c1b660beacdb4b3edb5f729ca5df7db596b6bf6c7`.
+- GitHub Actions run `36074711779` passed installation, generated-type validation, strict type checking, coverage thresholds, and the Wrangler deployment dry-run from the private repository.
+- Production Cron `*/30 * * * *` completed successfully at `2026-09-25T00:00:54.000Z`, publishing the same 96-event content hash without changing the representation.
+- Initial subscription and event display passed in Google Calendar, Apple Calendar, and Outlook after enabling query-string routing; controlled client-side update and removal propagation remains pending.
 - Live content covered `2026-08-12T14:00:00.000Z` through `2027-09-30T18:00:00.000Z`, included 28 titles matching public VIP/Premium metadata, and linked every event back to the CAR Skool calendar.
 - The `aprenderepite.com` home-page SHA-256 remained `c573f4cd7e2f2801e3e1de50d170fe75361908ee7ffc3e74f33104b3082fe5d6` before and after attaching the exact Worker route.
-- Pending release evidence: public repository/one-click deployment, hosted CI execution, scheduled-refresh log capture, live failure retention exercise, and Google/Apple/Outlook subscription checks.
+- Pending release evidence: public repository/one-click deployment, live failure-retention exercise, and controlled Google/Apple/Outlook update/removal propagation.

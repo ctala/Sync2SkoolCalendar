@@ -55,6 +55,14 @@ function eventUid(event: NormalizedEvent, groupSlug: string): string {
   return `${eventIdentity(event)}@${groupSlug}.skool`;
 }
 
+function eventDescription(event: NormalizedEvent): string {
+  if (event.description.includes(event.url)) return event.description;
+  const sourceLink = `Evento en Skool: ${event.url}`;
+  return event.description.length === 0
+    ? sourceLink
+    : `${event.description}\n\n${sourceLink}`;
+}
+
 function eventLines(
   event: NormalizedEvent,
   options: CalendarOptions,
@@ -67,7 +75,7 @@ function eventLines(
     `DTSTART:${formatUtc(event.start)}`,
     `DTEND:${formatUtc(event.end)}`,
     `SUMMARY:${escapeText(event.title)}`,
-    `DESCRIPTION:${escapeText(event.description)}`,
+    `DESCRIPTION:${escapeText(eventDescription(event))}`,
     `URL:${safeUri(event.url)}`,
     `X-SKOOL-TIMEZONE:${escapeText(event.sourceTimezone)}`,
     "STATUS:CONFIRMED",
