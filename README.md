@@ -1,106 +1,162 @@
-# Skool Public Calendar
+# Skool Calendar Sync for Google Calendar, Apple Calendar, and Outlook
 
-Publica el calendario de una comunidad pública de Skool como un feed iCalendar al que se pueden suscribir Google Calendar, Apple Calendar, Outlook y otros clientes compatibles.
+[![CI](https://github.com/ctala/Sync2SkoolCalendar/actions/workflows/ci.yml/badge.svg)](https://github.com/ctala/Sync2SkoolCalendar/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
+[![GitHub Sponsors](https://img.shields.io/github/sponsors/ctala?logo=githubsponsors&label=Sponsor)](https://github.com/sponsors/ctala)
 
-[![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ctala/Sync2SkoolCalendar)
+Turn any **public Skool community calendar** into a stable **iCalendar/ICS subscription feed** with a self-hosted Cloudflare Worker. Members can subscribe from Google Calendar, Apple Calendar, Outlook, and other RFC 5545-compatible clients without sharing Skool credentials.
 
-## Qué Hace
+- No Skool API key, cookies, browser automation, or login
+- Automatic sync every 30 minutes
+- Stable event identities for updates and removals
+- Direct links back to every Skool event
+- Last-known-good calendar retained when Skool is temporarily unavailable
+- Production-tested by [Cágala, Aprende, Repite](https://www.skool.com/cagala-aprende-repite)
 
-- Lee el calendario público de Skool sin credenciales ni cookies.
-- Incluye eventos visibles aunque tengan metadatos de un nivel Premium o VIP.
-- Usa las ocurrencias que Skool ya expandió para respetar cambios y excepciones de eventos recurrentes.
-- Genera un `VEVENT` por ocurrencia con UID estable.
-- Incluye el enlace directo al evento de Skool como propiedad `URL` y como texto visible dentro de la descripción.
-- Sincroniza cada 30 minutos y guarda el último calendario válido en Cloudflare KV.
-- Sigue sirviendo ese calendario si Skool falla o cambia temporalmente su respuesta.
-- Expone por defecto `/calendario.ics`.
+**Live ICS feed:** [`https://aprenderepite.com/calendario.ics`](https://aprenderepite.com/calendario.ics)
 
-No recupera links de llamada que Skool omite de sus respuestas anónimas. Cada entrada siempre enlaza a la página correspondiente del evento en Skool.
+## Choose Your Path
 
-## Arquitectura
+| Self-host the calendar | Automate more of Skool |
+| --- | --- |
+| Deploy this open-source Worker to your Cloudflare account. It reads a public Skool calendar and publishes your own subscribable ICS URL. | Use the managed Skool All-in-One API Actor for authenticated administration and automation across posts, members, comments, and classroom content. It is a separate product, not a hosted version of this calendar Worker. |
+| [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ctala/Sync2SkoolCalendar) | **[Open the Skool All-in-One API Actor on Apify](https://apify.com/cristiantala/skool-all-in-one-api?fpr=cristian)** |
+
+> **Affiliate disclosure:** The Apify Actor URL is an affiliate link. I may receive a benefit if you sign up, at no extra cost to you.
+
+## What It Does
+
+- Reads Skool's anonymous public calendar responses.
+- Includes publicly visible events even when their metadata references Premium or VIP tiers.
+- Uses Skool's server-expanded occurrences to preserve recurring-event exceptions and moved dates.
+- Generates one `VEVENT` per occurrence with a deterministic UID.
+- Writes the Skool event URL both as an iCalendar `URL` property and visible description text.
+- Rebuilds a complete rolling snapshot covering one past month and twelve future months by default.
+- Publishes a new snapshot only after every requested month and page validates successfully.
+- Stores the last valid snapshot in Cloudflare KV and continues serving it through source failures.
+- Exposes `/calendario.ics` by default with `ETag`, `Last-Modified`, and conditional request support.
+
+Skool does not expose call links in its anonymous responses. Each calendar entry always links to the corresponding Skool event page instead.
+
+## How It Works
 
 ```text
-Skool público
-      |
-      v
-Cloudflare Worker --cada 30 min--> Calendar KV
-      |                                |
-      +------ GET /calendario.ics <----+
+Public Skool calendar
+          |
+          v
+Cloudflare Worker -- every 30 min --> Calendar KV
+          |                                |
+          +-------- GET /calendario.ics <--+
 ```
 
-El Worker reconstruye snapshots completos. Solo reemplaza KV cuando todas las páginas solicitadas son válidas; una respuesta parcial nunca elimina el calendario anterior.
+The Worker treats every refresh as an atomic snapshot. A partial, malformed, blocked, or timed-out source response never replaces the previous valid calendar.
 
-## Configuración
+## Quick Start
 
-Las variables no son secretas y se definen en `wrangler.jsonc`:
+### Deploy to Cloudflare
 
-| Variable | Valor predeterminado | Uso |
-| --- | --- | --- |
-| `GROUP_SLUG` | `cagala-aprende-repite` | Slug de la comunidad pública en Skool |
-| `CALENDAR_NAME` | `Cágala, Aprende, Repite` | Nombre mostrado por los calendarios |
-| `FEED_PATH` | `/calendario.ics` | Ruta pública del feed |
-| `PAST_MONTHS` | `1` | Meses pasados incluidos |
-| `FUTURE_MONTHS` | `12` | Meses futuros incluidos |
-| `CACHE_CONTROL` | `public, max-age=300, stale-while-revalidate=3600` | Caché HTTP del feed |
+Use the [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/ctala/Sync2SkoolCalendar) flow. The project contains no secrets, and Cloudflare provisions the `CALENDAR_KV` namespace because the reusable binding has no fixed namespace ID.
 
-No se necesita una API key de Skool.
-
-## Desarrollo Local
-
-Requisitos: Node.js 22.22.2 o superior y npm 12.1.0.
+The initial deployment receives a `workers.dev` URL. Configure the public values for your community, trigger the first synchronization, and validate the endpoint:
 
 ```bash
-npm install
+npm run smoke -- https://your-worker.workers.dev/calendario.ics
+```
+
+### Run locally
+
+Requirements:
+
+- Node.js 22.22.2 or newer
+- npm 12.1.0
+
+```bash
+npm ci
 npm run types
 npm test
 npm run typecheck
 npm run dev
 ```
 
-`npm run dev` habilita el endpoint local para probar el Cron manualmente:
+Trigger the scheduled handler locally:
 
 ```text
 http://localhost:8787/__scheduled
 ```
 
-Después del primer sync, el calendario queda disponible en:
+After the first successful sync, open:
 
 ```text
 http://localhost:8787/calendario.ics
 ```
 
-## Pruebas
+## Configuration
 
-```bash
-npm test
-npm run test:coverage
-npm run types:check
-npm run typecheck
-npm run deploy:dry
+All configuration is public and lives in `wrangler.jsonc`.
+
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `GROUP_SLUG` | `cagala-aprende-repite` | Public Skool community slug |
+| `CALENDAR_NAME` | `Cágala, Aprende, Repite` | Name displayed by calendar clients |
+| `FEED_PATH` | `/calendario.ics` | Public Worker pathname |
+| `PAST_MONTHS` | `1` | Past calendar months in each snapshot |
+| `FUTURE_MONTHS` | `12` | Future calendar months in each snapshot |
+| `CACHE_CONTROL` | `public, max-age=300, stale-while-revalidate=3600` | Successful response caching policy |
+
+The combined past, current, and future window cannot exceed 15 months. No Skool secret or API key is required.
+
+## Subscribe from a Calendar App
+
+Add the HTTPS URL as a subscribed or internet calendar. Some applications also accept `webcal://`:
+
+```text
+https://aprenderepite.com/calendario.ics
+webcal://aprenderepite.com/calendario.ics
 ```
 
-Las pruebas usan el runtime real de Workers, KV local aislado y fixtures sanitizados de Skool. `ical.js` actúa como parser independiente para verificar el resultado.
+Initial subscription, event links, and timezone rendering have been validated in Google Calendar, Apple Calendar, and Outlook. The Worker refreshes every 30 minutes, but each calendar provider decides when to fetch subscription updates. Client-visible changes can therefore arrive later.
 
-Para validar una URL desplegada:
+If a client caches a failed first attempt, remove the subscription and add it again with a new query parameter, for example:
+
+```text
+https://aprenderepite.com/calendario.ics?v=2
+```
+
+The Worker route accepts query strings while still requiring the exact `/calendario.ics` pathname.
+
+## Testing
+
+```bash
+npm run types:check
+npm run typecheck
+npm run test:coverage
+npm run deploy:dry
+npm run deploy:production:dry
+```
+
+Tests run inside the Cloudflare Workers runtime with isolated local KV and mocked outbound requests. Sanitized Skool fixtures cover source parsing, pagination, recurrence, malformed responses, and last-known-good retention. `ical.js` independently parses generated calendars.
+
+Validate any deployed endpoint with:
 
 ```bash
 npm run smoke -- https://example.workers.dev/calendario.ics
 ```
 
-## Deploy to Cloudflare
+The smoke test checks HTTP caching behavior, unique event identities, parseability, and visible Skool links.
 
-El botón al inicio del README clona el repositorio, despliega el Worker y aprovisiona automáticamente el namespace KV porque el binding `CALENDAR_KV` no contiene un ID fijo. No requiere secretos.
+## Custom Domain Deployment
 
-El primer deploy entrega una URL `workers.dev`. Para usar un dominio propio:
+The Cloudflare zone must exist in the same account as the Worker.
 
-1. Abre el Worker en el dashboard de Cloudflare.
-2. En **Settings > Domains & Routes**, agrega una ruta para el path deseado.
-3. Para CAR, la ruta de producción es `aprenderepite.com/calendario.ics`.
-4. Ejecuta el smoke test contra la URL final.
+1. Open the Worker in the Cloudflare dashboard.
+2. Go to **Settings > Domains & Routes**.
+3. Add a route ending in `*`, such as `example.com/calendario.ics*`, so calendar-client query strings reach the Worker.
+4. Run the smoke test against the final URL.
 
-La zona del dominio debe existir en la misma cuenta de Cloudflare. La ruta de Cloudflare termina en `*` para aceptar los parámetros de caché que pueden agregar los clientes, pero el Worker solo sirve el pathname exacto `/calendario.ics`. El botón no puede asociar automáticamente el dominio de otra persona.
+The Worker itself only serves the configured exact pathname. The reusable one-click deployment cannot attach a DNS route in another person's account.
 
-Este repositorio mantiene la ruta de CAR en un entorno separado para que el deploy genérico siga siendo reutilizable:
+This repository keeps the CAR route in a separate Wrangler environment:
 
 ```bash
 npm run deploy:production:dry
@@ -108,29 +164,60 @@ npm run deploy:production
 npm run smoke -- https://aprenderepite.com/calendario.ics
 ```
 
-## Suscripción
+The production route is `https://aprenderepite.com/calendario.ics*`; all other `aprenderepite.com` paths continue to use the existing Astro site.
 
-La URL HTTPS se puede agregar como calendario por suscripción. Algunas aplicaciones también aceptan la variante `webcal://`:
+## Limitations
 
-```text
-https://aprenderepite.com/calendario.ics
-webcal://aprenderepite.com/calendario.ics
-```
+- The integration depends on undocumented public Skool endpoints, which can change without notice.
+- Only public communities are supported.
+- The default rolling window is one past month plus the current month and twelve future months.
+- The complete window cannot exceed 15 months because of the Cloudflare Workers subrequest budget.
+- Each Skool request has a 10-second timeout and each refresh has a bounded request budget.
+- After a failed cold start, public requests observe a five-minute retry cooldown.
+- Skool does not publish cancellation tombstones; removed occurrences disappear from the next complete snapshot.
+- Before the first successful sync, a source failure returns HTTP 503. Later failures preserve the last valid feed.
+- Calendar clients control their own subscription refresh schedules.
 
-La frecuencia con que aparece un cambio depende también del cliente. Aunque el Worker refresca cada 30 minutos, Google Calendar, Apple Calendar y Outlook deciden cuándo vuelven a consultar el feed.
+## FAQ
 
-La suscripción inicial, los enlaces y la visualización de horarios fueron validados en Google Calendar, Apple Calendar y Outlook. La generación de snapshots completos y las pruebas automatizadas cubren actualizaciones y eliminaciones, pero no se midió su latencia de propagación en cada cliente porque esas aplicaciones controlan su propio ciclo de refresco. Si un cliente conserva en caché un primer intento fallido, elimina esa suscripción y vuelve a agregar la URL con un parámetro nuevo, por ejemplo `https://aprenderepite.com/calendario.ics?v=2`.
+### Does Skool provide an official calendar API?
 
-## Limitaciones
+No public, documented calendar API is required. This Worker reads the same anonymous public calendar data that Skool exposes to visitors. That makes the integration lightweight, but also means an upstream Skool change can require a parser update.
 
-- La integración usa endpoints públicos no documentados de Skool.
-- Solo se soportan comunidades públicas.
-- La ventana no es infinita: por defecto incluye un mes pasado y doce futuros.
-- La suma de meses pasados, el mes actual y meses futuros no puede superar 15 para respetar el presupuesto de subrequests de Workers.
-- Cada solicitud a Skool tiene un timeout de 10 segundos. Tras un cold-start fallido, el Worker espera 5 minutos antes de volver a intentarlo desde una petición pública.
-- Skool no publica tombstones de cancelación; una ocurrencia eliminada desaparece del siguiente snapshot completo.
-- Un fallo antes del primer sync devuelve HTTP 503. Después del primer sync siempre se conserva el último calendario válido.
+### Can this sync a private Skool community?
+
+No. The project intentionally avoids credentials, cookies, and authenticated scraping. Only events exposed by a public community are eligible.
+
+### Does the Apify Actor host this calendar sync?
+
+No. The [Skool All-in-One API Actor](https://apify.com/cristiantala/skool-all-in-one-api?fpr=cristian) is a separate managed product for broader authenticated Skool administration and automation. This repository is the self-hosted public-calendar integration.
+
+### Why use a complete snapshot instead of patching events?
+
+Complete snapshots make updates and removals deterministic. Stable UIDs let clients reconcile changed occurrences, while an occurrence missing from the next valid snapshot is removed naturally.
+
+### Why is a Skool event missing its meeting link?
+
+Skool omits some call details from anonymous responses. The Worker does not perform authenticated enrichment; it links users to the event page in Skool.
+
+## Contributing
+
+Read [CONTRIBUTING.md](CONTRIBUTING.md) before opening a pull request. Use [GitHub Discussions](https://github.com/ctala/Sync2SkoolCalendar/discussions) for setup questions and structured [GitHub Issues](https://github.com/ctala/Sync2SkoolCalendar/issues) for reproducible defects or focused feature proposals.
+
+Participation is governed by the [Code of Conduct](CODE_OF_CONDUCT.md). Community support boundaries are documented in [SUPPORT.md](SUPPORT.md).
+
+## Security
+
+Do not publish credentials, cookies, private community data, or vulnerability details in Issues or Discussions. Follow [SECURITY.md](SECURITY.md) and report vulnerabilities privately through [GitHub Security Advisories](https://github.com/ctala/Sync2SkoolCalendar/security/advisories/new).
+
+## Sponsor
+
+If this project saves you time, you can support its maintenance through [GitHub Sponsors](https://github.com/sponsors/ctala). Sponsorship is optional and never required to use or contribute to the project.
+
+## License
+
+Released under the [MIT License](LICENSE).
 
 ## Rollback
 
-Quita la ruta personalizada del Worker o apúntala nuevamente a su destino anterior. El sitio Astro de `aprenderepite.com` no se modifica y las otras rutas siguen funcionando con normalidad.
+Remove the custom Worker route or point it back to its previous target. The production Astro site is not modified by this Worker, and the KV snapshot can be retained for diagnosis or deleted with the Worker.
