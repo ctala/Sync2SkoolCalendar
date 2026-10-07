@@ -5,9 +5,19 @@ export interface CalendarOptions {
   calendarName: string;
   groupSlug: string;
   generatedAt: Date;
+  /** Omit locations and meeting-join links so a member-only calendar can be published. */
+  redact?: boolean;
 }
 
 const encoder = new TextEncoder();
+const MEETING_HOSTS = [
+  "zoom.us",
+  "meet.google.com",
+  "teams.microsoft.com",
+  "teams.live.com",
+  "webex.com",
+] as const;
+const URL_PATTERN = /https?:\/\/[^\s<>"'()[\]]+/gi;
 
 function formatUtc(date: Date): string {
   if (Number.isNaN(date.getTime())) throw new Error("Invalid calendar date");
@@ -55,12 +65,37 @@ function eventUid(event: NormalizedEvent, groupSlug: string): string {
   return `${eventIdentity(event)}@${groupSlug}.skool`;
 }
 
-function eventDescription(event: NormalizedEvent): string {
-  if (event.description.includes(event.url)) return event.description;
+function isMeetingLink(candidate: string): boolean {
+  let hostname: string;
+  try {
+    hostname = new URL(candidate).hostname.toLowerCase();
+  } catch {
+    return false;
+  }
+  return MEETING_HOSTS.some(
+    (host) => hostname === host || hostname.endsWith(`.${host}`),
+  );
+}
+
+function withoutMeetingLinks(text: string): string {
+  return text
+    .replace(URL_PATTERN, (match) => {
+      const candidate = match.replace(/[.,;:!?]+$/, "");
+      return isMeetingLink(candidate) ? match.slice(candidate.length) : match;
+    })
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/[ \t]+$/gm, "");
+}
+
+function eventDescription(event: NormalizedEvent, redact: boolean): string {
+  const description = redact
+    ? withoutMeetingLinks(event.description)
+    : event.description;
+  if (description.includes(event.url)) return description;
   const sourceLink = `Evento en Skool: ${event.url}`;
-  return event.description.length === 0
+  return description.length === 0
     ? sourceLink
-    : `${event.description}\n\n${sourceLink}`;
+    : `${description}\n\n${sourceLink}`;
 }
 
 function eventLines(
@@ -68,6 +103,7 @@ function eventLines(
   options: CalendarOptions,
 ): readonly string[] {
   const timestamp = event.updatedAt ?? event.createdAt ?? options.generatedAt;
+  const redact = options.redact === true;
   const lines = [
     "BEGIN:VEVENT",
     `UID:${escapeText(eventUid(event, options.groupSlug))}`,
@@ -75,7 +111,7 @@ function eventLines(
     `DTSTART:${formatUtc(event.start)}`,
     `DTEND:${formatUtc(event.end)}`,
     `SUMMARY:${escapeText(event.title)}`,
-    `DESCRIPTION:${escapeText(eventDescription(event))}`,
+    `DESCRIPTION:${escapeText(eventDescription(event, redact))}`,
     `URL:${safeUri(event.url)}`,
     `X-SKOOL-TIMEZONE:${escapeText(event.sourceTimezone)}`,
     "STATUS:CONFIRMED",
@@ -86,7 +122,7 @@ function eventLines(
   if (event.updatedAt !== undefined) {
     lines.push(`LAST-MODIFIED:${formatUtc(event.updatedAt)}`);
   }
-  if (event.location !== null) {
+  if (event.location !== null && !redact) {
     lines.push(`LOCATION:${escapeText(event.location)}`);
   }
   lines.push("END:VEVENT");

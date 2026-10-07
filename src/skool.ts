@@ -24,6 +24,7 @@ export interface CollectionConfig {
   groupSlug: string;
   pastMonths: number;
   futureMonths: number;
+  authToken?: string;
 }
 
 export interface CalendarDataUrlOptions {
@@ -47,6 +48,48 @@ const USER_AGENT =
   "Mozilla/5.0 (compatible; CARCalendar/1.0; +https://aprenderepite.com)";
 
 class StaleBuildError extends Error {}
+
+/** Skool sent the request to its login page: the session is missing, expired, or revoked. */
+export class SkoolSessionError extends Error {
+  constructor() {
+    super("Skool rejected the session: the calendar redirected to login");
+    this.name = "SkoolSessionError";
+  }
+}
+
+/** Skool sent the request to the community about page: the calendar is not visible to this identity. */
+export class SkoolAccessError extends Error {
+  constructor() {
+    super("Skool denied calendar access: the calendar redirected to the about page");
+    this.name = "SkoolAccessError";
+  }
+}
+
+function accessErrorForRedirect(location: string): Error | null {
+  let pathname: string;
+  try {
+    pathname = new URL(location, SKOOL_ORIGIN).pathname;
+  } catch {
+    return null;
+  }
+  if (pathname === "/login") return new SkoolSessionError();
+  if (pathname.endsWith("/about")) return new SkoolAccessError();
+  return null;
+}
+
+function isRedirect(response: Response): boolean {
+  return response.status >= 300 && response.status < 400;
+}
+
+function requestInit(
+  accept: string,
+  authToken: string | undefined,
+  signal: AbortSignal,
+): RequestInit {
+  const headers: Record<string, string> = { accept, "user-agent": USER_AGENT };
+  if (authToken !== undefined) headers.cookie = `auth_token=${authToken}`;
+  return { headers, redirect: "manual", signal };
+}
 
 async function withRequestTimeout<T>(
   operation: (signal: AbortSignal) => Promise<T>,
@@ -322,15 +365,22 @@ export function deduplicateEvents(
   return [...unique.values()];
 }
 
-async function fetchText(fetcher: Fetcher, url: URL): Promise<string> {
+async function fetchText(
+  fetcher: Fetcher,
+  url: URL,
+  authToken: string | undefined,
+): Promise<string> {
   return withRequestTimeout(async (signal) => {
-    const response = await fetcher(url, {
-      headers: {
-        accept: "text/html,application/xhtml+xml",
-        "user-agent": USER_AGENT,
-      },
-      signal,
-    });
+    const response = await fetcher(
+      url,
+      requestInit("text/html,application/xhtml+xml", authToken, signal),
+    );
+    if (isRedirect(response)) {
+      throw (
+        accessErrorForRedirect(response.headers.get("location") ?? "") ??
+        new Error(`Skool calendar returned an unexpected redirect: ${response.status}`)
+      );
+    }
     if (!response.ok) throw new Error(`Skool request failed: ${response.status}`);
     return response.text();
   });
@@ -339,12 +389,19 @@ async function fetchText(fetcher: Fetcher, url: URL): Promise<string> {
 async function fetchCalendarPage(
   fetcher: Fetcher,
   url: URL,
+  authToken: string | undefined,
 ): Promise<CalendarPage> {
   return withRequestTimeout(async (signal) => {
-    const response = await fetcher(url, {
-      headers: { accept: "application/json", "user-agent": USER_AGENT },
-      signal,
-    });
+    const response = await fetcher(
+      url,
+      requestInit("application/json", authToken, signal),
+    );
+    if (isRedirect(response)) {
+      throw (
+        accessErrorForRedirect(response.headers.get("location") ?? "") ??
+        new StaleBuildError("Skool data route redirected")
+      );
+    }
     if (response.status === 404 || response.status === 410) {
       throw new StaleBuildError("Stale Skool build ID");
     }
@@ -358,6 +415,15 @@ async function fetchCalendarPage(
     } catch {
       throw new StaleBuildError("Invalid Skool data route response");
     }
+    if (isRecord(body) && isRecord(body.pageProps)) {
+      const destination = body.pageProps.__N_REDIRECT;
+      if (typeof destination === "string") {
+        throw (
+          accessErrorForRedirect(destination) ??
+          new StaleBuildError("Skool data route redirected")
+        );
+      }
+    }
     return parseCalendarPage(body);
   });
 }
@@ -368,7 +434,7 @@ async function collectWithFreshBuild(
   now: Date,
 ): Promise<readonly NormalizedEvent[]> {
   const calendarUrl = new URL(`/${encodeURIComponent(config.groupSlug)}/calendar`, SKOOL_ORIGIN);
-  const html = await fetchText(fetcher, calendarUrl);
+  const html = await fetchText(fetcher, calendarUrl, config.authToken);
   const buildId = discoverBuildId(html);
   const currentPage = parseCurrentPageFromHtml(html);
   if (currentPage.events.length !== currentPage.numCalendarEvents) {
@@ -403,6 +469,7 @@ async function collectWithFreshBuild(
         view: "list",
         page: 1,
       }),
+      config.authToken,
     );
     const monthEvents = [...firstPage.events];
     const pageCount = Math.ceil(firstPage.numCalendarEvents / PAGE_SIZE);
@@ -416,6 +483,7 @@ async function collectWithFreshBuild(
           view: "list",
           page,
         }),
+        config.authToken,
       );
       if (nextPage.numCalendarEvents !== firstPage.numCalendarEvents) {
         throw new Error("Calendar pagination count changed during collection");

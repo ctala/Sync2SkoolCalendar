@@ -5,10 +5,11 @@
 [![Cloudflare Workers](https://img.shields.io/badge/Cloudflare-Workers-F38020?logo=cloudflare&logoColor=white)](https://workers.cloudflare.com/)
 [![GitHub Sponsors](https://img.shields.io/github/sponsors/ctala?logo=githubsponsors&label=Sponsor)](https://github.com/sponsors/ctala)
 
-Turn any **public Skool community calendar** into a stable **iCalendar/ICS subscription feed** with a self-hosted Cloudflare Worker. Members can subscribe from Google Calendar, Apple Calendar, Outlook, and other RFC 5545-compatible clients without sharing Skool credentials.
+Turn a **Skool community calendar** into a stable **iCalendar/ICS subscription feed** with a self-hosted Cloudflare Worker. Members can subscribe from Google Calendar, Apple Calendar, Outlook, and other RFC 5545-compatible clients without sharing Skool credentials.
 
-- No Skool API key, cookies, browser automation, or login
-- Automatic sync every 30 minutes
+- Public communities: no Skool API key, cookies, browser automation, or login
+- Private or paid communities: one optional member session token, with meeting links redacted from the public feed
+- Automatic sync every hour
 - Stable event identities for updates and removals
 - Direct links back to every Skool event
 - Last-known-good calendar retained when Skool is temporarily unavailable
@@ -27,8 +28,8 @@ Turn any **public Skool community calendar** into a stable **iCalendar/ICS subsc
 
 ## What It Does
 
-- Reads Skool's anonymous public calendar responses.
-- Includes publicly visible events even when their metadata references Premium or VIP tiers.
+- Reads Skool's anonymous public calendar responses, or the member-visible calendar when a session token is configured.
+- Includes visible events even when their metadata references Premium or VIP tiers.
 - Uses Skool's server-expanded occurrences to preserve recurring-event exceptions and moved dates.
 - Generates one `VEVENT` per occurrence with a deterministic UID.
 - Writes the Skool event URL both as an iCalendar `URL` property and visible description text.
@@ -37,15 +38,15 @@ Turn any **public Skool community calendar** into a stable **iCalendar/ICS subsc
 - Stores the last valid snapshot in Cloudflare KV and continues serving it through source failures.
 - Exposes `/calendario.ics` by default with `ETag`, `Last-Modified`, and conditional request support.
 
-Skool does not expose call links in its anonymous responses. Each calendar entry always links to the corresponding Skool event page instead.
+Skool does not expose call links in its anonymous responses. In private-community mode the Worker removes locations and meeting-join links itself. Each calendar entry always links to the corresponding Skool event page instead.
 
 ## How It Works
 
 ```text
-Public Skool calendar
+Skool calendar (anonymous, or member session)
           |
           v
-Cloudflare Worker -- every 30 min --> Calendar KV
+Cloudflare Worker -- every hour --> Calendar KV
           |                                |
           +-------- GET /calendario.ics <--+
 ```
@@ -56,7 +57,7 @@ The Worker treats every refresh as an atomic snapshot. A partial, malformed, blo
 
 ### Deploy to Cloudflare
 
-Use the [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/ctala/Sync2SkoolCalendar) flow. The project contains no secrets, and Cloudflare provisions the `CALENDAR_KV` namespace because the reusable binding has no fixed namespace ID.
+Use the [Deploy to Cloudflare](https://deploy.workers.cloudflare.com/?url=https://github.com/ctala/Sync2SkoolCalendar) flow. The project contains no secrets and needs none for a public community, and Cloudflare provisions the `CALENDAR_KV` namespace because the reusable binding has no fixed namespace ID.
 
 The initial deployment receives a `workers.dev` URL. Configure the public values for your community, trigger the first synchronization, and validate the endpoint:
 
@@ -104,7 +105,25 @@ All configuration is public and lives in `wrangler.jsonc`.
 | `FUTURE_MONTHS` | `12` | Future calendar months in each snapshot |
 | `CACHE_CONTROL` | `public, max-age=300, stale-while-revalidate=3600` | Successful response caching policy |
 
-The combined past, current, and future window cannot exceed 15 months. No Skool secret or API key is required.
+The combined past, current, and future window cannot exceed 15 months. No Skool secret or API key is required for a public community.
+
+### Private or paid communities
+
+When a community is private, Skool redirects anonymous visitors to its about page and the calendar cannot be read. Configure the optional `SKOOL_AUTH_TOKEN` secret with the `auth_token` cookie of an account that is a member of the community:
+
+```bash
+npx wrangler secret put SKOOL_AUTH_TOKEN            # workers.dev deployment
+npx wrangler secret put SKOOL_AUTH_TOKEN --env production
+```
+
+- **Getting the token:** sign in to Skool in a browser with the member account and copy the value of the `auth_token` cookie for `www.skool.com` (a JWT, valid for about one year). Never commit it; for local development put it in `.dev.vars`, which is git-ignored.
+- **Account:** use a dedicated member account with access to every tier you want to publish. Avoid owner or admin sessions, since the token grants that account's full access until it expires.
+- **What the feed shows:** in this mode the public feed is redacted. It keeps title, description, times, timezone, and the Skool event link, but omits `LOCATION` and removes Zoom, Google Meet, Microsoft Teams, and Webex links from descriptions, so subscribing never bypasses the community's paywall.
+- **Monitoring:** failed refreshes log `calendar.refresh.failed` with `cause: "session"` (expired or revoked token, re-issue it), `cause: "access"` (the account lost membership), or `cause: "source"`. The Worker logs `calendar.auth.expiring` when fewer than 30 days remain, and `calendar.auth.unreadable` if the expiry cannot be read. The last valid calendar keeps serving in every case.
+- **Rotation:** sign in again, run `wrangler secret put` with the new value, and wait for the next hourly refresh. Signing in again does not revoke older sessions.
+- **Rollback to anonymous mode:** `npx wrangler secret delete SKOOL_AUTH_TOKEN --env production`.
+
+The Worker sends the token only as a cookie to `www.skool.com`, never logs it, and never stores it in KV.
 
 ## Subscribe from a Calendar App
 
@@ -115,7 +134,7 @@ https://aprenderepite.com/calendario.ics
 webcal://aprenderepite.com/calendario.ics
 ```
 
-Initial subscription, event links, and timezone rendering have been validated in Google Calendar, Apple Calendar, and Outlook. The Worker refreshes every 30 minutes, but each calendar provider decides when to fetch subscription updates. Client-visible changes can therefore arrive later.
+Initial subscription, event links, and timezone rendering have been validated in Google Calendar, Apple Calendar, and Outlook. The Worker refreshes every hour, but each calendar provider decides when to fetch subscription updates. Client-visible changes can therefore arrive later.
 
 If a client caches a failed first attempt, remove the subscription and add it again with a new query parameter, for example:
 
@@ -169,7 +188,7 @@ The production route is `https://aprenderepite.com/calendario.ics*`; all other `
 ## Limitations
 
 - The integration depends on undocumented public Skool endpoints, which can change without notice.
-- Only public communities are supported.
+- Private communities require a member session token that must be renewed about once a year; the public feed is redacted in that mode.
 - The default rolling window is one past month plus the current month and twelve future months.
 - The complete window cannot exceed 15 months because of the Cloudflare Workers subrequest budget.
 - Each Skool request has a 10-second timeout and each refresh has a bounded request budget.
@@ -186,7 +205,7 @@ No public, documented calendar API is required. This Worker reads the same anony
 
 ### Can this sync a private Skool community?
 
-No. The project intentionally avoids credentials, cookies, and authenticated scraping. Only events exposed by a public community are eligible.
+Yes, with the optional `SKOOL_AUTH_TOKEN` member session described in [Private or paid communities](#private-or-paid-communities). The Worker never stores passwords or signs in by itself, and it redacts locations and meeting links because the resulting feed is public.
 
 ### Does the Apify Actor host this calendar sync?
 
@@ -198,7 +217,7 @@ Complete snapshots make updates and removals deterministic. Stable UIDs let clie
 
 ### Why is a Skool event missing its meeting link?
 
-Skool omits some call details from anonymous responses. The Worker does not perform authenticated enrichment; it links users to the event page in Skool.
+Skool omits some call details from anonymous responses, and in private-community mode the Worker removes them on purpose. Calendar entries link to the event page in Skool, where members join.
 
 ## Contributing
 

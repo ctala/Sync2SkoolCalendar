@@ -20,12 +20,16 @@ Include:
 
 This is a solo-maintained project and does not promise a response or remediation SLA. Reports will be reviewed as capacity allows. Please allow time for a fix before public disclosure.
 
+## Operating with a Skool session token
+
+The optional `SKOOL_AUTH_TOKEN` grants the configured account's Skool access for as long as the session lives (about one year). Store it only as a Cloudflare Worker secret or in a secrets manager, prefer a dedicated non-admin member account, and rotate it immediately if it may have been exposed: change the account password in Skool, sign in again, and update the Worker secret.
+
 ## Scope
 
 In scope:
 
 - this repository's Worker, calendar generation, deployment configuration, and documented workflows;
-- accidental exposure of secrets or private data caused by this project;
+- accidental exposure of secrets or private data caused by this project, including the optional `SKOOL_AUTH_TOKEN` session token or meeting links that private-community redaction should remove;
 - vulnerabilities in project-owned code.
 
 Out of scope:
