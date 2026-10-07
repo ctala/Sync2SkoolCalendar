@@ -14,10 +14,15 @@ import {
   refreshCalendar,
 } from "../src/sync";
 import type { CalendarEnv } from "../src/sync";
+import { SkoolAccessError, SkoolSessionError } from "../src/skool";
 import {
+  ACCESS_REDIRECT,
   GROUP_SLUG,
+  SESSION_REDIRECT,
   calendarHtml,
   calendarPage,
+  redirectResponse,
+  sessionToken,
   unrestrictedEvent,
 } from "./fixtures/skool";
 
@@ -60,6 +65,39 @@ function successfulFetcher(
   });
 }
 
+function currentMonthEvent(): unknown {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "America/Santiago",
+    year: "numeric",
+    month: "numeric",
+  }).formatToParts(new Date());
+  const year = Number(parts.find((part) => part.type === "year")?.value);
+  const month = Number(parts.find((part) => part.type === "month")?.value);
+  const start = new Date(Date.UTC(year, month - 1, 15, 15));
+  return {
+    ...unrestrictedEvent,
+    startTime: start.toISOString(),
+    endTime: new Date(start.getTime() + 3_600_000).toISOString(),
+  };
+}
+
+function capturedLogs(): () => string {
+  const lines: string[] = [];
+  for (const method of ["log", "warn", "error"] as const) {
+    vi.spyOn(console, method).mockImplementation((...args: unknown[]) => {
+      lines.push(args.map(String).join(" "));
+    });
+  }
+  return () => lines.join("\n");
+}
+
+function loggedEvents(logs: string): readonly Record<string, unknown>[] {
+  return logs
+    .split("\n")
+    .filter((line) => line.startsWith("{"))
+    .map((line) => JSON.parse(line) as Record<string, unknown>);
+}
+
 afterEach(async () => {
   vi.unstubAllGlobals();
   vi.restoreAllMocks();
@@ -80,6 +118,7 @@ describe("calendar synchronization", () => {
     expect(stored?.source).toEqual({
       groupSlug: GROUP_SLUG,
       calendarName: "Cágala, Aprende, Repite",
+      authenticated: false,
     });
     expect(stored?.sourceWindow).toEqual({ pastMonths: 0, futureMonths: 0 });
     expect(stored?.hash).toMatch(/^[a-f0-9]{64}$/);
@@ -137,7 +176,7 @@ describe("calendar synchronization", () => {
     vi.stubGlobal("fetch", successfulFetcher());
     const controller = createScheduledController({
       scheduledTime: now.getTime(),
-      cron: "*/30 * * * *",
+      cron: "0 * * * *",
     });
     const ctx = createExecutionContext();
 
@@ -150,7 +189,7 @@ describe("calendar synchronization", () => {
 
 describe("public calendar endpoint", () => {
   it("initializes synchronously on the first anonymous GET", async () => {
-    vi.stubGlobal("fetch", successfulFetcher());
+    vi.stubGlobal("fetch", successfulFetcher([currentMonthEvent()]));
     const ctx = createExecutionContext();
 
     const response = await worker.fetch(
@@ -301,5 +340,177 @@ describe("public calendar endpoint", () => {
     );
 
     expect(response.status).toBe(404);
+  });
+});
+
+describe("member session synchronization", () => {
+  const futureToken = sessionToken(new Date("2027-09-24T20:00:00Z"));
+
+  it("logs a classified cause and keeps the last valid calendar", async () => {
+    const initial = await refreshCalendar(testEnv(), successfulFetcher(), now);
+    const logs = capturedLogs();
+    const cases = [
+      [redirectResponse(SESSION_REDIRECT), SkoolSessionError, "session"],
+      [redirectResponse(ACCESS_REDIRECT), SkoolAccessError, "access"],
+    ] as const;
+
+    for (const [response, errorClass] of cases) {
+      await expect(
+        refreshCalendar(
+          testEnv({ SKOOL_AUTH_TOKEN: futureToken }),
+          vi.fn(async () => response.clone()),
+          now,
+        ),
+      ).rejects.toBeInstanceOf(errorClass);
+    }
+    await expect(
+      refreshCalendar(
+        testEnv(),
+        vi.fn(async () => {
+          throw new Error("source unavailable");
+        }),
+        now,
+      ),
+    ).rejects.toThrow(/source unavailable/);
+
+    const failures = loggedEvents(logs()).filter(
+      (entry) => entry.event === "calendar.refresh.failed",
+    );
+    expect(failures.map((entry) => entry.cause)).toEqual([
+      "session",
+      "access",
+      "source",
+    ]);
+    expect(await readCalendarBundle(env.CALENDAR_KV)).toEqual(initial);
+  });
+
+  it("never exposes the session token in logs, KV, or responses", async () => {
+    const logs = capturedLogs();
+    const memberEnv = testEnv({ SKOOL_AUTH_TOKEN: futureToken });
+
+    await refreshCalendar(memberEnv, successfulFetcher(), now);
+    await expect(
+      refreshCalendar(
+        memberEnv,
+        vi.fn(async () => redirectResponse(SESSION_REDIRECT)),
+        now,
+      ),
+    ).rejects.toBeInstanceOf(SkoolSessionError);
+    const response = await worker.fetch(
+      new Request("https://aprenderepite.com/calendario.ics"),
+      memberEnv as Env,
+      createExecutionContext(),
+    );
+
+    const exposed = [
+      logs(),
+      (await env.CALENDAR_KV.get(CALENDAR_BUNDLE_KEY)) ?? "",
+      await response.text(),
+      JSON.stringify([...response.headers]),
+    ].join("\n");
+    expect(exposed).not.toContain(futureToken);
+    expect(exposed).not.toContain(futureToken.split(".")[1]);
+  });
+
+  it("records the source mode and regenerates when it changes", async () => {
+    const anonymous = await refreshCalendar(testEnv(), successfulFetcher(), now);
+    expect(anonymous.source.authenticated).toBe(false);
+
+    const memberEnv = testEnv({ SKOOL_AUTH_TOKEN: futureToken });
+    const fetcher = successfulFetcher();
+    vi.stubGlobal("fetch", fetcher);
+    const response = await worker.fetch(
+      new Request("https://aprenderepite.com/calendario.ics"),
+      memberEnv as Env,
+      createExecutionContext(),
+    );
+
+    expect(response.status).toBe(200);
+    expect(fetcher).toHaveBeenCalled();
+    expect((await readCalendarBundle(env.CALENDAR_KV))?.source.authenticated).toBe(
+      true,
+    );
+  });
+
+  it("rejects a token that cannot be sent as a cookie without echoing it", () => {
+    const unsafe = "abc;def secret";
+    expect(() =>
+      readRuntimeConfig(testEnv({ SKOOL_AUTH_TOKEN: unsafe })),
+    ).toThrow(/SKOOL_AUTH_TOKEN/);
+    try {
+      readRuntimeConfig(testEnv({ SKOOL_AUTH_TOKEN: unsafe }));
+    } catch (error) {
+      expect(String(error)).not.toContain("secret");
+    }
+  });
+
+  it("treats an empty token as anonymous mode", async () => {
+    const bundle = await refreshCalendar(
+      testEnv({ SKOOL_AUTH_TOKEN: "  " }),
+      successfulFetcher(),
+      now,
+    );
+    expect(bundle.source.authenticated).toBe(false);
+  });
+
+  it("warns when the token expires within 30 days", async () => {
+    const logs = capturedLogs();
+    const expiresAt = new Date("2026-10-04T20:00:00Z");
+
+    await refreshCalendar(
+      testEnv({ SKOOL_AUTH_TOKEN: sessionToken(expiresAt) }),
+      successfulFetcher(),
+      now,
+    );
+
+    const warning = loggedEvents(logs()).find(
+      (entry) => entry.event === "calendar.auth.expiring",
+    );
+    expect(warning).toMatchObject({
+      level: "warn",
+      expiresAt: expiresAt.toISOString(),
+      daysLeft: 10,
+    });
+  });
+
+  it("warns when the token expiry cannot be read", async () => {
+    const logs = capturedLogs();
+
+    await refreshCalendar(
+      testEnv({ SKOOL_AUTH_TOKEN: "not.a-jwt.value" }),
+      successfulFetcher(),
+      now,
+    );
+
+    expect(
+      loggedEvents(logs()).some((entry) => entry.event === "calendar.auth.unreadable"),
+    ).toBe(true);
+  });
+
+  it("does not warn when the token has more than 30 days left", async () => {
+    const logs = capturedLogs();
+
+    await refreshCalendar(
+      testEnv({ SKOOL_AUTH_TOKEN: futureToken }),
+      successfulFetcher(),
+      now,
+    );
+
+    expect(
+      loggedEvents(logs()).some((entry) =>
+        String(entry.event).startsWith("calendar.auth."),
+      ),
+    ).toBe(false);
+  });
+
+  it("publishes a redacted calendar in member mode", async () => {
+    const bundle = await refreshCalendar(
+      testEnv({ SKOOL_AUTH_TOKEN: futureToken }),
+      successfulFetcher(),
+      now,
+    );
+
+    expect(bundle.calendar).toContain("SUMMARY:Induccion CAR");
+    expect(bundle.calendar).not.toContain("LOCATION:");
   });
 });

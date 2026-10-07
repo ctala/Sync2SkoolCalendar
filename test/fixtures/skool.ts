@@ -100,3 +100,33 @@ export const malformedCalendarPage = {
     numCalendarEvents: "unknown",
   },
 };
+
+export const ACCESS_REDIRECT = `/${GROUP_SLUG}/about`;
+export const SESSION_REDIRECT = `/login?redirect=/${GROUP_SLUG}/calendar&lo=true`;
+
+export function redirectResponse(location: string): Response {
+  return new Response(null, { status: 307, headers: { location } });
+}
+
+export function nextDataRedirect(destination: string): unknown {
+  return {
+    pageProps: { __N_REDIRECT: destination, __N_REDIRECT_STATUS: 307 },
+    __N_SSP: true,
+  };
+}
+
+function base64Url(value: string): string {
+  return btoa(value).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+export function sessionToken(expiresAt: Date): string {
+  const header = base64Url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const payload = base64Url(
+    JSON.stringify({
+      user_id: "member-1",
+      iat: Math.floor(expiresAt.getTime() / 1000) - 31_536_000,
+      exp: Math.floor(expiresAt.getTime() / 1000),
+    }),
+  );
+  return `${header}.${payload}.c2lnbmF0dXJl`;
+}

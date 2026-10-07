@@ -265,3 +265,70 @@ describe("iCalendar generation", () => {
     expect(after).not.toContain("event-vip-1791982800");
   });
 });
+
+describe("redacted member calendar", () => {
+  const memberEvent = normalizeEvent(
+    {
+      ...unrestrictedEvent,
+      metadata: {
+        ...unrestrictedEvent.metadata,
+        description: [
+          "Entra por Zoom: https://us06web.zoom.us/j/123?pwd=abc",
+          "Alternativa https://meet.google.com/abc-defg-hij.",
+          "Teams (https://teams.microsoft.com/l/meetup-join/x) y https://teams.live.com/meet/9",
+          "Webex: https://acme.webex.com/meet/room",
+          "Guía: https://example.com/guia",
+          "Falso positivo: https://notzoom.us/j/1",
+        ].join("\n"),
+        location: JSON.stringify({
+          location_type: 1,
+          location_info: "https://us06web.zoom.us/j/123?pwd=abc",
+        }),
+      },
+    },
+    GROUP_SLUG,
+  );
+  const options = { calendarName: "CAR", groupSlug: GROUP_SLUG, generatedAt };
+
+  function firstEvent(source: string): ICAL.Component {
+    const vevent = parseCalendar(source).getFirstSubcomponent("vevent");
+    if (vevent === null) throw new Error("missing VEVENT");
+    return vevent;
+  }
+
+  it("omits locations and meeting links but keeps the rest", () => {
+    const source = generateCalendar([memberEvent], { ...options, redact: true });
+    const vevent = firstEvent(source);
+    const description = String(vevent.getFirstPropertyValue("description"));
+
+    expect(vevent.hasProperty("location")).toBe(false);
+    for (const removed of [
+      "us06web.zoom.us",
+      "meet.google.com",
+      "teams.microsoft.com",
+      "teams.live.com",
+      "acme.webex.com",
+    ]) {
+      expect(source).not.toContain(removed);
+    }
+    expect(description).toContain("Entra por Zoom:");
+    expect(description).toContain("https://example.com/guia");
+    expect(description).toContain("https://notzoom.us/j/1");
+    expect(description).toContain(memberEvent.url);
+    expect(vevent.getFirstPropertyValue("url")).toBe(memberEvent.url);
+    expect(vevent.getFirstPropertyValue("summary")).toBe(memberEvent.title);
+  });
+
+  it("leaves the public representation unchanged when not redacting", () => {
+    expect(generateCalendar([memberEvent], options)).toBe(
+      generateCalendar([memberEvent], { ...options, redact: false }),
+    );
+    const vevent = firstEvent(generateCalendar([memberEvent], options));
+    expect(vevent.getFirstPropertyValue("location")).toBe(
+      "https://us06web.zoom.us/j/123?pwd=abc",
+    );
+    expect(String(vevent.getFirstPropertyValue("description"))).toContain(
+      "https://meet.google.com/abc-defg-hij",
+    );
+  });
+});

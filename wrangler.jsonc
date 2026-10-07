@@ -19,7 +19,7 @@
     "CACHE_CONTROL": "public, max-age=300, stale-while-revalidate=3600"
   },
   "triggers": {
-    "crons": ["*/30 * * * *"]
+    "crons": ["0 * * * *"]
   },
   "observability": {
     "enabled": true,

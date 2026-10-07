@@ -7,10 +7,16 @@ import {
   discoverBuildId,
   normalizeEvent,
   parseCalendarPage,
+  SkoolAccessError,
+  SkoolSessionError,
 } from "../src/skool";
 import {
+  ACCESS_REDIRECT,
   GROUP_SLUG,
+  SESSION_REDIRECT,
   calendarHtml,
+  nextDataRedirect,
+  redirectResponse,
   calendarPage,
   malformedCalendarPage,
   restrictedRecurringEvent,
@@ -302,5 +308,121 @@ describe("complete public collection", () => {
         malformed,
       ),
     ).rejects.toThrow(/NEXT_DATA|calendar page/i);
+  });
+});
+
+describe("member session collection", () => {
+  const token = "header.payload.signature";
+  const config = { groupSlug: GROUP_SLUG, pastMonths: 0, futureMonths: 1 };
+
+  function memberFetcher(): ReturnType<typeof vi.fn> {
+    return vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(input.toString());
+      if (url.pathname === `/${GROUP_SLUG}/calendar`) {
+        return new Response(calendarHtml("build-123", []));
+      }
+      return Response.json(calendarPage([restrictedRecurringEvent]));
+    });
+  }
+
+  it("sends the session cookie on every request when a token is configured", async () => {
+    const fetcher = memberFetcher();
+
+    const events = await collectSkoolEvents(
+      { ...config, authToken: token },
+      fetcher,
+      new Date("2026-09-24T20:00:00Z"),
+    );
+
+    expect(events).toHaveLength(1);
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    for (const [, init] of fetcher.mock.calls) {
+      expect(new Headers(init?.headers).get("cookie")).toBe(`auth_token=${token}`);
+      expect(init?.redirect).toBe("manual");
+    }
+  });
+
+  it("sends no cookie when no token is configured", async () => {
+    const fetcher = memberFetcher();
+
+    await collectSkoolEvents(config, fetcher, new Date("2026-09-24T20:00:00Z"));
+
+    for (const [, init] of fetcher.mock.calls) {
+      expect(new Headers(init?.headers).has("cookie")).toBe(false);
+    }
+  });
+
+  it("classifies a login redirect on the calendar page as a session error", async () => {
+    const fetcher = vi.fn(async () => redirectResponse(SESSION_REDIRECT));
+
+    await expect(
+      collectSkoolEvents({ ...config, authToken: token }, fetcher),
+    ).rejects.toBeInstanceOf(SkoolSessionError);
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("classifies an about-page redirect on the calendar page as an access error", async () => {
+    const fetcher = vi.fn(async () =>
+      redirectResponse(`https://www.skool.com${ACCESS_REDIRECT}`),
+    );
+
+    await expect(collectSkoolEvents(config, fetcher)).rejects.toBeInstanceOf(
+      SkoolAccessError,
+    );
+    expect(fetcher).toHaveBeenCalledTimes(1);
+  });
+
+  it("classifies Next data redirects without retrying the build", async () => {
+    for (const [destination, errorClass] of [
+      [SESSION_REDIRECT, SkoolSessionError],
+      [ACCESS_REDIRECT, SkoolAccessError],
+    ] as const) {
+      const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+        const url = new URL(input.toString());
+        if (url.pathname === `/${GROUP_SLUG}/calendar`) {
+          return new Response(calendarHtml("build-123", []));
+        }
+        return Response.json(nextDataRedirect(destination));
+      });
+
+      await expect(
+        collectSkoolEvents(config, fetcher, new Date("2026-09-24T20:00:00Z")),
+      ).rejects.toBeInstanceOf(errorClass);
+      expect(fetcher).toHaveBeenCalledTimes(2);
+    }
+  });
+
+  it("keeps the stale-build retry for other data-route redirects", async () => {
+    let htmlRequests = 0;
+    const fetcher = vi.fn(async (input: RequestInfo | URL) => {
+      const url = new URL(input.toString());
+      if (url.pathname === `/${GROUP_SLUG}/calendar`) {
+        htmlRequests += 1;
+        return new Response(
+          calendarHtml(htmlRequests === 1 ? "stale-build" : "fresh-build", []),
+        );
+      }
+      if (url.pathname.includes("stale-build")) {
+        return redirectResponse(`/${GROUP_SLUG}/calendar`);
+      }
+      return Response.json(calendarPage([restrictedRecurringEvent]));
+    });
+
+    const events = await collectSkoolEvents(
+      config,
+      fetcher,
+      new Date("2026-09-24T20:00:00Z"),
+    );
+
+    expect(events).toHaveLength(1);
+    expect(htmlRequests).toBe(2);
+  });
+
+  it("rejects an unexpected calendar page redirect", async () => {
+    const fetcher = vi.fn(async () => redirectResponse("/somewhere-else"));
+
+    await expect(collectSkoolEvents(config, fetcher)).rejects.toThrow(
+      /unexpected redirect/i,
+    );
   });
 });
