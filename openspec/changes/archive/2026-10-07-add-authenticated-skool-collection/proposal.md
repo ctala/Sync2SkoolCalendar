@@ -11,7 +11,7 @@ The `cagala-aprende-repite` community became private and paid-only, so Skool now
 - Reduce the scheduled refresh from every 30 minutes to hourly to limit automated traffic on the member account.
 - **BREAKING** (spec-level): the "Credential-free public source integration" requirement becomes "anonymous by default, optional member session".
 - Update README and SECURITY guidance: how to obtain the token, how to rotate it, and why to use a dedicated account.
-- Out of scope: logging in from the Worker, storing email/password, using the Apify actor in the refresh path, private or per-tier feeds, and automated token rotation. Rotation can later be automated outside this repository, for example n8n with the Apify `auth:login` action and the Cloudflare API.
+- Out of scope: logging in from the Worker, storing email/password, using the Apify actor in the refresh path, private or per-tier feeds, and automated token rotation. Rotation can later be automated outside this repository with an external login tool and the Cloudflare API.
 
 ## Capabilities
 
@@ -30,4 +30,4 @@ None.
 - `src/ical.ts`: omit `LOCATION` and meeting links in redacted mode.
 - `wrangler.jsonc`: cron becomes `0 * * * *`; secret documented, never committed.
 - Tests: new fixtures for the `/login` and `/about` redirects, authenticated requests, and redaction.
-- Operations: the Nyx Skool account token is stored in Infisical (`/skool/nyx/`) and pushed with `wrangler secret put SKOOL_AUTH_TOKEN --env production`.
+- Operations: the member session token is kept in the operator's secrets manager and pushed with `wrangler secret put SKOOL_AUTH_TOKEN --env production`.
