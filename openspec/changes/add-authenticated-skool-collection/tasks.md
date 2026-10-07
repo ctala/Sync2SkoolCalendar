@@ -28,6 +28,6 @@
 
 ## 6. Rollout Verification
 
-- [ ] 6.1 Run `npm run typecheck`, the full test suite, and coverage; verify everything passes in CI.
-- [ ] 6.2 Store the token in Infisical as `/skool/nyx/SKOOL_NYX_AUTH_TOKEN`, set `SKOOL_AUTH_TOKEN` on the `workers.dev` deployment, trigger a refresh, and verify the logs show success, the event count matches the authenticated probe, and the `.ics` contains no `LOCATION` and no Zoom URLs.
-- [ ] 6.3 Set the secret with `--env production`, deploy, and run `npm run smoke -- https://aprenderepite.com/calendario.ics`; verify that `last-modified` advances, upcoming October events appear, and the rollback command (`wrangler secret delete SKOOL_AUTH_TOKEN --env production`) is documented in the PR.
+- [x] 6.1 Run `npm run typecheck`, the full test suite, and coverage; verify everything passes in CI.
+- [x] 6.2 Store the token in Infisical as `/skool/nyx/SKOOL_NYX_AUTH_TOKEN`, set `SKOOL_AUTH_TOKEN` on the `workers.dev` deployment, trigger a refresh, and verify the logs show success, the event count matches the authenticated probe, and the `.ics` contains no `LOCATION` and no Zoom URLs.
+- [x] 6.3 Set the secret with `--env production`, deploy, and run `npm run smoke -- https://aprenderepite.com/calendario.ics`; verify that `last-modified` advances, upcoming October events appear, and the rollback command (`wrangler secret delete SKOOL_AUTH_TOKEN --env production`) is documented in the PR.
