@@ -1,6 +1,6 @@
 ## 1. Pre-implementation Spike
 
-- [x] 1.1 Confirm `SKOOL_NYX_EMAIL` in Infisical matches the current Nyx login (`nyx@bynyx.app`), generate a Nyx token with `auth_login.py --out /tmp/skool_cookies_nyx.txt`, and verify its JWT `user_id` is `16912a03af3b42d490e1d12f472fc0c4` and that it loads `/cagala-aprende-repite/calendar` with HTTP 200.
+- [x] 1.1 Confirm `SKOOL_NYX_EMAIL` in Infisical matches the current Nyx login, generate a Nyx token with `auth_login.py --out /tmp/skool_cookies_nyx.txt`, and verify its JWT `user_id` matches the Nyx account and that it loads `/cagala-aprende-repite/calendar` with HTTP 200.
 - [x] 1.2 Generate a second Nyx token, then re-request the calendar with the first; record in design.md whether new logins revoke older sessions and, if they do, choose a dedicated account or a coordinated rotation before continuing.
 
 ## 2. Authenticated Skool Collection
