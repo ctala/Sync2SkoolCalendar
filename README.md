@@ -21,7 +21,7 @@ Turn a **Skool community calendar** into a stable **iCalendar/ICS subscription f
 
 | Self-host the calendar | Automate more of Skool |
 | --- | --- |
-| Deploy this open-source Worker to your Cloudflare account. It reads a public Skool calendar and publishes your own subscribable ICS URL. | Use the managed Skool All-in-One API Actor for authenticated administration and automation across posts, members, comments, and classroom content. It is a separate product, not a hosted version of this calendar Worker. |
+| Deploy this open-source Worker to your Cloudflare account. It reads a public Skool calendar (or a private one with a member session token) and publishes your own subscribable ICS URL. | Use the managed Skool All-in-One API Actor for authenticated administration and automation across posts, members, comments, and classroom content. It is a separate product, not a hosted version of this calendar Worker. |
 | [![Deploy to Cloudflare](https://deploy.workers.cloudflare.com/button)](https://deploy.workers.cloudflare.com/?url=https://github.com/ctala/Sync2SkoolCalendar) | **[Open the Skool All-in-One API Actor on Apify](https://apify.com/cristiantala/skool-all-in-one-api?fpr=cristian)** |
 
 > **Affiliate disclosure:** The Apify Actor URL is an affiliate link. I may receive a benefit if you sign up, at no extra cost to you.
@@ -116,7 +116,7 @@ npx wrangler secret put SKOOL_AUTH_TOKEN            # workers.dev deployment
 npx wrangler secret put SKOOL_AUTH_TOKEN --env production
 ```
 
-- **Getting the token:** sign in to Skool in a browser with the member account and copy the value of the `auth_token` cookie for `www.skool.com` (a JWT, valid for about one year). Never commit it; for local development put it in `.dev.vars`, which is git-ignored.
+- **Getting the token:** sign in to Skool in a browser with the member account, open the developer tools (**Application > Cookies > `https://www.skool.com`** in Chrome, **Storage > Cookies** in Firefox or Safari), and copy the value of the `auth_token` cookie. It is a JWT valid for about one year. Paste only the value, without `auth_token=`. Never commit it; for local development put `SKOOL_AUTH_TOKEN=<value>` in `.dev.vars`, which is git-ignored.
 - **Account:** use a dedicated member account with access to every tier you want to publish. Avoid owner or admin sessions, since the token grants that account's full access until it expires.
 - **What the feed shows:** in this mode the public feed is redacted. It keeps title, description, times, timezone, and the Skool event link, but omits `LOCATION` and removes Zoom, Google Meet, Microsoft Teams, and Webex links from descriptions, so subscribing never bypasses the community's paywall.
 - **Monitoring:** failed refreshes log `calendar.refresh.failed` with `cause: "session"` (expired or revoked token, re-issue it), `cause: "access"` (the account lost membership), or `cause: "source"`. The Worker logs `calendar.auth.expiring` when fewer than 30 days remain, and `calendar.auth.unreadable` if the expiry cannot be read. The last valid calendar keeps serving in every case.
@@ -201,7 +201,7 @@ The production route is `https://aprenderepite.com/calendario.ics*`; all other `
 
 ### Does Skool provide an official calendar API?
 
-No public, documented calendar API is required. This Worker reads the same anonymous public calendar data that Skool exposes to visitors. That makes the integration lightweight, but also means an upstream Skool change can require a parser update.
+No public, documented calendar API is required. This Worker reads the same calendar data that Skool's web app shows to anonymous visitors, or to the configured member account for private communities. That makes the integration lightweight, but also means an upstream Skool change can require a parser update.
 
 ### Can this sync a private Skool community?
 

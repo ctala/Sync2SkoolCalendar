@@ -1,7 +1,7 @@
 ## 1. Pre-implementation Spike
 
-- [x] 1.1 Confirm `SKOOL_NYX_EMAIL` in Infisical matches the current Nyx login, generate a Nyx token with `auth_login.py --out /tmp/skool_cookies_nyx.txt`, and verify its JWT `user_id` matches the Nyx account and that it loads `/cagala-aprende-repite/calendar` with HTTP 200.
-- [x] 1.2 Generate a second Nyx token, then re-request the calendar with the first; record in design.md whether new logins revoke older sessions and, if they do, choose a dedicated account or a coordinated rotation before continuing.
+- [x] 1.1 Confirm the member account's stored login is current, issue a session token, and verify its JWT `user_id` matches that account and that it loads `/cagala-aprende-repite/calendar` with HTTP 200.
+- [x] 1.2 Issue a second session token, then re-request the calendar with the first; record in design.md whether new logins revoke older sessions and, if they do, choose a dedicated account or a coordinated rotation before continuing.
 
 ## 2. Authenticated Skool Collection
 
@@ -29,5 +29,5 @@
 ## 6. Rollout Verification
 
 - [x] 6.1 Run `npm run typecheck`, the full test suite, and coverage; verify everything passes in CI.
-- [x] 6.2 Store the token in Infisical as `/skool/nyx/SKOOL_NYX_AUTH_TOKEN`, set `SKOOL_AUTH_TOKEN` on the `workers.dev` deployment, trigger a refresh, and verify the logs show success, the event count matches the authenticated probe, and the `.ics` contains no `LOCATION` and no Zoom URLs.
+- [x] 6.2 Store the token in the operator's secrets manager, set `SKOOL_AUTH_TOKEN` on the `workers.dev` deployment, trigger a refresh, and verify the logs show success, the event count matches the authenticated probe, and the `.ics` contains no `LOCATION` and no Zoom URLs.
 - [x] 6.3 Set the secret with `--env production`, deploy, and run `npm run smoke -- https://aprenderepite.com/calendario.ics`; verify that `last-modified` advances, upcoming October events appear, and the rollback command (`wrangler secret delete SKOOL_AUTH_TOKEN --env production`) is documented in the PR.
